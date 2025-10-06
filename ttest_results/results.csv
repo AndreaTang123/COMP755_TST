@@ -1,0 +1,2 @@
+alpha,n_trials,n_per_group,typeI_fisher,typeI_bonf,power_fisher,power_bonf,class_a,class_b
+0.05,200,50,0.13,0.045,1.0,1.0,0,1
