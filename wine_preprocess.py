@@ -1,7 +1,4 @@
-#!/usr/bin/env python3
 """
-wine_preprocess.py
-
 Preprocess the UCI Wine dataset for two-sample testing and other ML experiments.
 
 Features:

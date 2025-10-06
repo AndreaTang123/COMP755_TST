@@ -1,0 +1,57 @@
+{
+  "source_used": "ucimlrepo:id=20",
+  "n_samples": 48842,
+  "n_features_out": 105,
+  "original_feature_names": [
+    "age",
+    "workclass",
+    "fnlwgt",
+    "education",
+    "education_num",
+    "marital_status",
+    "occupation",
+    "relationship",
+    "race",
+    "sex",
+    "capital_gain",
+    "capital_loss",
+    "hours_per_week",
+    "native_country"
+  ],
+  "numeric_features": [
+    "age",
+    "fnlwgt",
+    "education_num",
+    "capital_gain",
+    "capital_loss",
+    "hours_per_week"
+  ],
+  "categorical_features": [
+    "workclass",
+    "education",
+    "marital_status",
+    "occupation",
+    "relationship",
+    "race",
+    "sex",
+    "native_country"
+  ],
+  "label_mapping": {
+    "original_unique_values": [
+      "<=50K",
+      "<=50K.",
+      ">50K",
+      ">50K."
+    ],
+    "mapping": {
+      "<=50K": 0,
+      ">50K": 1
+    },
+    "note": "Trailing periods mapped equivalently."
+  },
+  "preprocess": {
+    "numeric": "SimpleImputer(median) + StandardScaler",
+    "categorical": "SimpleImputer(most_frequent) + OneHotEncoder(handle_unknown=ignore)"
+  },
+  "note": "No PCA or splitting to match wine_preprocess.py behavior."
+}
