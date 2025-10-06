@@ -18,7 +18,7 @@ Usage examples:
     python wine_preprocess.py --pca-k 8 --save-format both
     python wine_preprocess.py --source sklearn --keep-original-classes
 
-Author: ChatGPT (Two Sample Testing project)
+
 """
 
 from __future__ import annotations
