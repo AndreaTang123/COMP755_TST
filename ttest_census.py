@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
 """
-ttest_eval.py
 Run Welch's t-tests across features for two-sample testing on preprocessed datasets.
 See header for usage examples.
 """

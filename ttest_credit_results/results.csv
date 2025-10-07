@@ -1,0 +1,2 @@
+alpha,n_trials,n_per_group,typeI_fisher,typeI_bonf,power_fisher,power_bonf,mode,source
+0.05,200,50,0.06,0.03,1.0,1.0,fraud_vs_normal,inmemory
