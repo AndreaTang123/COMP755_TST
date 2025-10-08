@@ -1,0 +1,2 @@
+alpha,n_trials,n_per_group,typeI_fisher,typeI_bonf,power_fisher,power_bonf,mode,source
+0.05,200,50,0.015,0.03,0.03,0.03,train_vs_test,inmemory
