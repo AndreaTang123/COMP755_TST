@@ -31,6 +31,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import ks_2samp, combine_pvalues
 import matplotlib.pyplot as plt
+from typing import Tuple
 
 # ---------- Data loading ----------
 
@@ -116,6 +117,16 @@ def ks_aggregate(A: np.ndarray, B: np.ndarray):
     p_bonf = min(1.0, np.min(pvals) * len(pvals))
     return float(p_fisher), float(p_bonf)
 
+def ks_per_feature(A: np.ndarray, B: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+    """Return per-feature KS statistics (D) and p-values."""
+    D = np.empty(A.shape[1], dtype=float)
+    p = np.empty(A.shape[1], dtype=float)
+    for j in range(A.shape[1]):
+        res = ks_2samp(A[:, j], B[:, j])
+        D[j] = res.statistic
+        p[j] = res.pvalue
+    return D, p
+
 # ---------- Plot helpers ----------
 
 def bar_chart(labels, values, title, out_path):
@@ -147,6 +158,10 @@ def main():
     ap.add_argument("--test-size", type=float, default=0.5, help="Only used for inmemory loading")
     ap.add_argument("--time-frac", type=float, default=0.5, help="Early-vs-late split fraction (timeslice mode)")
     ap.add_argument("--out-dir", type=str, default="./ks_credit_results")
+    ap.add_argument("--per-feature", action="store_true",
+                    help="Record per-feature KS stats across trials and save plots/CSV.")
+    ap.add_argument("--per-feature-metric", choices=["D", "p", "reject"], default="D",
+                    help="Metric for per-feature plot: KS statistic (D), p-value (p), or reject rate (reject).")
     args = ap.parse_args()
 
     rng = np.random.default_rng(args.seed)
@@ -164,6 +179,12 @@ def main():
         Xy = load_csv_dir(args.data_dir)
 
     X, y, feat_names, time_col = Xy
+
+    num_features = X.shape[1]
+    if args.per_feature:
+        alt_sum_D = np.zeros(num_features, dtype=float)
+        alt_sum_p = np.zeros(num_features, dtype=float)
+        alt_reject_counts = np.zeros(num_features, dtype=float)
 
     # --- Null (Type I): random split from the same distribution ---
     null_reject_fisher, null_reject_bonf = [], []
@@ -196,7 +217,18 @@ def main():
             A = A[rng.choice(len(A), size=n, replace=False), :]
             B = B[rng.choice(len(B), size=n, replace=False), :]
 
-        p_f, p_b = ks_aggregate(A, B)
+        if args.per_feature:
+            D_vec, p_vec = ks_per_feature(A, B)
+            alt_sum_D += D_vec
+            alt_sum_p += p_vec
+            alt_reject_counts += (p_vec < args.alpha).astype(float)
+            # Aggregate
+            _, p_fisher = combine_pvalues(p_vec, method='fisher')
+            p_bonf = min(1.0, float(np.min(p_vec)) * len(p_vec))
+            p_f, p_b = float(p_fisher), float(p_bonf)
+        else:
+            p_f, p_b = ks_aggregate(A, B)
+
         alt_reject_fisher.append(p_f < args.alpha)
         alt_reject_bonf.append(p_b < args.alpha)
 
@@ -217,6 +249,53 @@ def main():
 
     out_dir = Path(args.out_dir); out_dir.mkdir(parents=True, exist_ok=True)
     summary.to_csv(out_dir / "results.csv", index=False)
+
+    if args.per_feature:
+        mean_D = alt_sum_D / args.n_trials
+        mean_p = alt_sum_p / args.n_trials
+        reject_rate = alt_reject_counts / args.n_trials
+        per_feat_df = pd.DataFrame({
+            "feature": feat_names,
+            "mean_D": mean_D,
+            "mean_p": mean_p,
+            "reject_rate": reject_rate
+        })
+        per_feat_df.to_csv(out_dir / "per_feature_alt.csv", index=False)
+
+        if args.per_feature_metric == "D":
+            vec = mean_D
+            vtitle = f"Per-feature mean KS statistic (ALT) - {args.mode}"
+            fname_hm = "per_feature_alt_D_heatmap.png"
+            fname_bar = "per_feature_alt_D_bar.png"
+        elif args.per_feature_metric == "p":
+            vec = mean_p
+            vtitle = f"Per-feature mean p-value (ALT) - {args.mode}"
+            fname_hm = "per_feature_alt_p_heatmap.png"
+            fname_bar = "per_feature_alt_p_bar.png"
+        else:
+            vec = reject_rate
+            vtitle = f"Per-feature reject rate (ALT) - {args.mode}"
+            fname_hm = "per_feature_alt_reject_heatmap.png"
+            fname_bar = "per_feature_alt_reject_bar.png"
+
+        plt.figure(figsize=(max(6, len(vec)*0.25), 2.2))
+        plt.imshow(vec.reshape(1, -1), aspect="auto")
+        plt.yticks([0], ["ALT"])
+        plt.xticks(range(len(feat_names)), feat_names, rotation=60, ha="right", fontsize=8)
+        plt.title(vtitle)
+        plt.colorbar(shrink=0.8)
+        plt.tight_layout()
+        plt.savefig(out_dir / fname_hm, dpi=160)
+        plt.close()
+
+        plt.figure(figsize=(max(6, len(vec)*0.35), 3.0))
+        plt.bar(range(len(vec)), vec)
+        plt.xticks(range(len(feat_names)), feat_names, rotation=60, ha="right", fontsize=8)
+        plt.title(vtitle)
+        plt.ylabel(args.per_feature_metric)
+        plt.tight_layout()
+        plt.savefig(out_dir / fname_bar, dpi=160)
+        plt.close()
 
     # Plots
     def _bar(labels, values, title, fname):
